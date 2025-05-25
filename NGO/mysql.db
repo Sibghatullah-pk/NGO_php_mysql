@@ -1,0 +1,189 @@
+-- Drop the database if it exists to start fresh
+DROP DATABASE IF EXISTS project;
+
+-- Create the database
+CREATE DATABASE project;
+USE project;
+
+-- Users table: Stores user information with role-based access
+CREATE TABLE users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    role ENUM('admin', 'volunteer', 'donor') NOT NULL DEFAULT 'donor',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_login TIMESTAMP NULL,
+    INDEX idx_username (username),
+    INDEX idx_email (email)
+);
+
+-- Donations table: Tracks donations with user linkage
+CREATE TABLE donations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    amount DECIMAL(10, 2) NOT NULL,
+    type VARCHAR(100) NOT NULL,
+    full_name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) NOT NULL,
+    phone VARCHAR(20) NOT NULL,
+    status ENUM('pending', 'completed') DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_created_at (created_at),
+    INDEX idx_user_id (user_id)
+);
+
+-- Messages table: Stores contact form submissions
+CREATE TABLE messages (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    email VARCHAR(100) NOT NULL,
+    message TEXT NOT NULL,
+    status ENUM('read', 'unread') DEFAULT 'unread',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_created_at (created_at),
+    INDEX idx_user_id (user_id)
+);
+
+-- Tasks table: Manages volunteer tasks
+CREATE TABLE tasks (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(100) NOT NULL,
+    description TEXT,
+    assigned_to INT,
+    status ENUM('pending', 'in_progress', 'completed') DEFAULT 'pending',
+    due_date DATE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (assigned_to) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_assigned_to (assigned_to),
+    INDEX idx_status (status)
+);
+
+-- Team table: Stores team member details for About page
+CREATE TABLE team (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    role VARCHAR(100) NOT NULL,
+    image VARCHAR(255),
+    bio TEXT
+);
+
+-- Stories table: Stores success stories for display
+CREATE TABLE stories (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(100) NOT NULL,
+    description TEXT NOT NULL,
+    image VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_created_at (created_at)
+);
+
+-- Newsletter table: Stores email subscriptions
+CREATE TABLE newsletter (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    subscribed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_email (email)
+);
+
+-- Audit Logs table: Tracks critical actions
+CREATE TABLE audit_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    action VARCHAR(100) NOT NULL,
+    user_id INT,
+    details TEXT,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_timestamp (timestamp),
+    INDEX idx_user_id (user_id)
+);
+
+-- Password Resets table: Supports password reset functionality
+CREATE TABLE password_resets (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(100) NOT NULL,
+    token VARCHAR(255) NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    INDEX idx_email (email)
+);
+
+-- Login Attempts table: Tracks login attempts for rate-limiting
+CREATE TABLE login_attempts (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL,
+    ip_address VARCHAR(45) NOT NULL,
+    attempt_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_username (username),
+    INDEX idx_attempt_time (attempt_time)
+);
+
+-- Replies table: Stores admin replies to messages
+CREATE TABLE replies (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    message_id INT NOT NULL,
+    reply TEXT NOT NULL,
+    sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE,
+    INDEX idx_message_id (message_id)
+);
+
+-- Announcements table: Stores site-wide announcements
+CREATE TABLE announcements (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(100) NOT NULL,
+    content TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_created_at (created_at)
+);
+
+-- Migrations table: Tracks schema changes
+CREATE TABLE migrations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    migration_name VARCHAR(255) NOT NULL,
+    applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Insert initial data for testing
+INSERT INTO users (username, email, password, role) VALUES
+('admin1', 'admin@ngo.com', '$2y$10$8eQz7kX6g7z3z3z3z3z3z3z3z3z3z3z3z3z3z3z3z3z3z3z3z3z', 'admin'),
+('volunteer1', 'volunteer@ngo.com', '$2y$10$8eQz7kX6g7z3z3z3z3z3z3z3z3z3z3z3z3z3z3z3z3z3z3z3z3z', 'volunteer'),
+('donor1', 'donor@ngo.com', '$2y$10$8eQz7kX6g7z3z3z3z3z3z3z3z3z3z3z3z3z3z3z3z3z3z3z3z3z', 'donor');
+
+INSERT INTO donations (user_id, amount, type, full_name, email, phone, status) VALUES
+(3, 100.00, 'Cash', 'John Doe', 'donor@ngo.com', '+1234567890', 'completed'),
+(3, 50.00, 'Goods', 'John Doe', 'donor@ngo.com', '+1234567890', 'pending');
+
+INSERT INTO messages (user_id, email, message, status) VALUES
+(3, 'donor@ngo.com', 'Interested in your programs!', 'unread'),
+(2, 'volunteer@ngo.com', 'Can I join the next event?', 'read');
+
+INSERT INTO tasks (title, description, assigned_to, status, due_date) VALUES
+('Event Setup', 'Prepare venue for charity event', 2, 'pending', '2025-06-01'),
+('Fundraising Campaign', 'Plan social media campaign', 2, 'in_progress', '2025-05-30');
+
+INSERT INTO team (name, role, image, bio) VALUES
+('Jane Smith', 'Founder', '/images/jane.jpg', 'Passionate about social change.'),
+('John Brown', 'Volunteer Coordinator', '/images/john.jpg', 'Experienced in community outreach.');
+
+INSERT INTO stories (title, description, image) VALUES
+('Clean Water Initiative', 'Provided clean water to 500 families.', '/images/water.jpg'),
+('Education Program', 'Supported 200 children with school supplies.', '/images/education.jpg');
+
+INSERT INTO newsletter (email) VALUES
+('subscriber1@ngo.com'),
+('subscriber2@ngo.com');
+
+INSERT INTO announcements (title, content) VALUES
+('Annual Gala', 'Join us on June 10th for our annual fundraising gala!'),
+('Volunteer Drive', 'We need volunteers for our May cleanup event.');
+
+-- Log initial migration
+INSERT INTO migrations (migration_name) VALUES
+('initial_schema_20250519');
+
+
+
+
+
